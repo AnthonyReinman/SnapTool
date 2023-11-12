@@ -14,6 +14,22 @@ android {
         versionCode 1
         versionName "1.0"
 
+        Properties properties = new Properties()
+        properties.load(project.rootProject.file('local.properties').newDataInputStream())
+        buildConfigField 'String', 'OPENAI_API_KEY', properties['OPENAI_API_KEY']
+
+        def localProperties = new Properties()
+        def localPropertiesFile = rootProject.file('local.properties')
+        if (localPropertiesFile.exists()) {
+            localProperties.load(new FileInputStream(localPropertiesFile))
+        }
+        // Check if the OPENAI_API_KEY exists in the local.properties file
+        if (localProperties.containsKey('OPENAI_API_KEY')) {
+            buildConfigField 'String', 'OPENAI_API_KEY', localProperties['OPENAI_API_KEY']
+        } else {
+            buildConfigField 'String', 'OPENAI_API_KEY', '""' // Set a default or empty string
+        }
+
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary true
@@ -56,6 +72,7 @@ dependencies {
     implementation 'androidx.compose.ui:ui-graphics'
     implementation 'androidx.compose.ui:ui-tooling-preview'
     implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.core:core-ktx:+'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
@@ -63,4 +80,8 @@ dependencies {
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
+    implementation 'com.amazonaws:aws-android-sdk-core:2.73.0'
+    implementation 'com.amazonaws:aws-android-sdk-rekognition:2.73.0'
+    implementation("com.squareup.okhttp3:okhttp:4.9.0")
+    implementation 'com.google.code.gson:gson:2.10.1'
 }
