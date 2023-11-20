@@ -53,8 +53,7 @@ class MainActivity : ComponentActivity() {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        CameraFeature(imageBitmap) { capturedBitmap ->
-                            imageBitmap = capturedBitmap
+                        CameraFeature { capturedBitmap ->
                             analyzeImageWithRekognition(capturedBitmap) { name ->
                                 toolName = name
                             }
@@ -85,9 +84,12 @@ class MainActivity : ComponentActivity() {
     }
 
 private fun analyzeImageWithRekognition(bitmap: Bitmap, onResult: (String) -> Unit) {
+    //LOG
     Log.d("Rekognition", "Starting image analysis")
     val base64Image = convertToBase64(bitmap)
 
+    //LOG
+    Log.d("Rekognition", "Base64 Image length: ${base64Image.length}")
     // Setup AWS credentials
     val awsCredentials = BasicAWSCredentials("AKIASIQPUJRXEZFILVVG", "c8T78iNoyrbH4EHi7lD2cIzqw+N6dXI7SwhBCXsi")
     val rekognitionClient = AmazonRekognitionClient(awsCredentials)
@@ -104,7 +106,9 @@ private fun analyzeImageWithRekognition(bitmap: Bitmap, onResult: (String) -> Un
             // Send the request and handle the response
             val response = rekognitionClient.detectLabels(request)
             Log.d("Rekognition", "Response received: ${response.labels}")
+
             val labelName = response.labels.maxByOrNull { it.confidence }?.name ?: "Unknown"
+            Log.d("Rekognition", "Most confident label: $labelName")
 
             // Switch to the Main dispatcher to update the UI
             withContext(Dispatchers.Main) {
@@ -140,8 +144,7 @@ private fun convertToBase64(bitmap: Bitmap): String {
 }
 
 @Composable
-fun CameraFeature(imageBitmap: Bitmap?, onImageCaptured: (Bitmap) -> Unit) {
-    var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
+fun CameraFeature(onImageCaptured: (Bitmap) -> Unit) {
     val context = LocalContext.current
 
     // Camera launcher
@@ -150,7 +153,7 @@ fun CameraFeature(imageBitmap: Bitmap?, onImageCaptured: (Bitmap) -> Unit) {
         onResult = { bitmap ->
             if (bitmap != null) {
                 Log.d("CameraFeature", "Image captured successfully")
-                imageBitmap = bitmap
+                onImageCaptured(bitmap) // Ensure the callback is invoked here
             } else {
                 Log.d("CameraFeature", "Failed to capture image")
             }
@@ -189,10 +192,10 @@ fun CameraFeature(imageBitmap: Bitmap?, onImageCaptured: (Bitmap) -> Unit) {
     }
 }
 
-@Preview(showBackground = true)
+/*@Preview(showBackground = true)
 @Composable
 fun DefaultPreview() {
     SnapToolTheme {
         CameraFeature(imageBitmap = null, onImageCaptured = {})
     }
-}
+}*/
