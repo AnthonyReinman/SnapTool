@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -41,44 +42,53 @@ class MainActivity : ComponentActivity() {
             SnapToolTheme {
                 var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
                 var toolName by remember { mutableStateOf("") }
+                var showResultScreen by remember { mutableStateOf(false) }
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
+                    if (showResultScreen && imageBitmap != null) {
+                        ResultScreen(toolName, imageBitmap!!) {
+                            // When the 'Home' button is clicked in ResultScreen, reset states Might change this
+                            showResultScreen = false
+                        }
+                    } else {
+                        // Camera and Analysis UI
                         CameraFeature { capturedBitmap ->
+                            imageBitmap = capturedBitmap
                             analyzeImageWithRekognition(capturedBitmap) { name ->
                                 toolName = name
+                                showResultScreen = true
                             }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // This Text composable displays the tool name
-                        if (toolName.isNotEmpty()) {
-                            Text(
-                                text = "Tool Identified: $toolName",
-                                style = MaterialTheme.typography.bodyMedium 
-                            )
-                        }
-                        imageBitmap?.let { bitmap ->
-                            Image(bitmap = bitmap.asImageBitmap(),
-                                contentDescription = "Captured Image",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(300.dp)
-                                    .padding(16.dp))
-
                         }
                     }
                 }
+            }
+        }
+    }
+    @Composable
+    fun ResultScreen(toolName: String, imageBitmap: Bitmap, onHomeClicked: () -> Unit) {
+        Box(modifier = Modifier.fillMaxSize()) {
+
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Tool Identified: $toolName", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+                Image(bitmap = imageBitmap.asImageBitmap(), contentDescription = "Captured Image")
+            }
+
+            // Home button in the upper right corner
+            Button(
+                onClick = onHomeClicked,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+                    .size(width = 100.dp, height = 40.dp)
+            ) {
+                Text("Home")
             }
         }
     }
@@ -186,7 +196,7 @@ fun CameraFeature(onImageCaptured: (Bitmap) -> Unit) {
             Text("Take Picture")
         }
 
-        Spacer(modifier = Modifier.height(16.dp)) // Add space between the button and the image
+        Spacer(modifier = Modifier.height(16.dp))
 
 
     }
