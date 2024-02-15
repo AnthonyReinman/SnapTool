@@ -7,6 +7,7 @@ import android.util.Base64
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,9 +20,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.amazonaws.auth.BasicAWSCredentials
@@ -34,8 +37,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
+//ChatGPT
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.GET
+import retrofit2.http.Query
 
 class MainActivity : ComponentActivity() {
+    private lateinit var cameraLauncher: ManagedActivityResultLauncher<Void?, Bitmap?>
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -43,6 +56,18 @@ class MainActivity : ComponentActivity() {
                 var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
                 var toolName by remember { mutableStateOf("") }
                 var showResultScreen by remember { mutableStateOf(false) }
+                cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+                    if (bitmap != null) {
+                        Log.d("CameraFeature", "Image captured successfully")
+                        imageBitmap = bitmap
+                        analyzeImageWithRekognition(bitmap) { name ->
+                            toolName = name
+                            showResultScreen = true
+                        }
+                    } else {
+                        Log.d("CameraFeature", "Failed to capture image")
+                    }
+                }
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -50,23 +75,21 @@ class MainActivity : ComponentActivity() {
                 ) {
                     if (showResultScreen && imageBitmap != null) {
                         ResultScreen(toolName, imageBitmap!!) {
-                            // When the 'Home' button is clicked in ResultScreen, reset states Might change this
                             showResultScreen = false
+                            imageBitmap = null // Reset the imageBitmap when going back
+                            toolName = "" // Reset the toolName when going back
                         }
                     } else {
-                        // Camera and Analysis UI
-                        CameraFeature { capturedBitmap ->
-                            imageBitmap = capturedBitmap
-                            analyzeImageWithRekognition(capturedBitmap) { name ->
-                                toolName = name
-                                showResultScreen = true
-                            }
+                        HomeScreen {
+                            cameraLauncher.launch(null)
                         }
                     }
                 }
             }
         }
     }
+
+
     @Composable
     fun ResultScreen(toolName: String, imageBitmap: Bitmap, onHomeClicked: () -> Unit) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -92,6 +115,74 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    @Composable
+    fun HomeScreen(onTakePicture: () -> Unit) {
+        val image = painterResource(id = R.drawable.logo)
+        val backgroundColor = Color(0xFF5CB9FF)
+        Surface(modifier = Modifier.fillMaxSize(), color = backgroundColor) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Image(
+                    painter = image,
+                    contentDescription = "Logo",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
+                Spacer(modifier = Modifier.height(32.dp)) // Adjust this value to move the button up
+                Button(onClick = onTakePicture) {
+                    Text("Take Picture")
+                }
+                Spacer(modifier = Modifier.weight(1f))
+            }
+        }
+    }
+
+    @Composable
+    fun ToolInfoScreen(viewModel: ToolInfoViewModel, onHomeClick: () -> Unit) {
+        val toolHistory by viewModel.toolHistory.collectAsState()
+        val toolUsage by viewModel.toolUsage.collectAsState()
+        val toolMaintenance by viewModel.toolMaintenance.collectAsState()
+
+        Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF5CB9FF)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Tool History: $toolHistory",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(8.dp)
+                )
+                Text(
+                    text = "Tool Usage: $toolUsage",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(8.dp)
+                )
+                Text(
+                    text = "Tool Maintenance: $toolMaintenance",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(8.dp)
+                )
+                Button(
+                    onClick = onHomeClick,
+                    modifier = Modifier.padding(top = 16.dp)
+                ) {
+                    Text("Return to Home")
+                }
+                // Add more UI elements
+            }
+        }
+    }
+
 
 private fun analyzeImageWithRekognition(bitmap: Bitmap, onResult: (String) -> Unit) {
     //LOG
@@ -136,14 +227,6 @@ private fun analyzeImageWithRekognition(bitmap: Bitmap, onResult: (String) -> Un
         }
     }
 }
-
-    // Send the request and handle the response
-   /* val response = rekognitionClient.detectLabels(request)
-    response.labels.forEach { label ->
-        // Process and use label data
-        println("${label.name}: ${label.confidence}")
-    }
-}*/
 
 private fun convertToBase64(bitmap: Bitmap): String {
     ByteArrayOutputStream().apply {
@@ -201,11 +284,3 @@ fun CameraFeature(onImageCaptured: (Bitmap) -> Unit) {
 
     }
 }
-
-/*@Preview(showBackground = true)
-@Composable
-fun DefaultPreview() {
-    SnapToolTheme {
-        CameraFeature(imageBitmap = null, onImageCaptured = {})
-    }
-}*/
