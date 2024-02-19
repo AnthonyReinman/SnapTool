@@ -5,8 +5,6 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.launch
-import retrofit2.HttpException
 
 class ToolInfoViewModel : ViewModel() {
     private val _toolHistory = MutableStateFlow("")
@@ -18,40 +16,45 @@ class ToolInfoViewModel : ViewModel() {
     private val _toolMaintenance = MutableStateFlow("")
     val toolMaintenance: StateFlow<String> = _toolMaintenance
 
-    fun handleFetchFailure() {
-        _toolHistory.value = "Fetch failed"
-        _toolUsage.value = "Could not retrieve usage information."
-        _toolMaintenance.value = "Could not retrieve maintenance information."
+    fun fetchToolInfo(toolName: String) {
+        fetchSpecificToolInfo("$toolName history", "history")
+        fetchSpecificToolInfo("$toolName usage", "usage")
+        fetchSpecificToolInfo("$toolName maintenance", "maintenance")
     }
 
-
-    fun fetchToolInfo(toolName: String) {
+    private fun fetchSpecificToolInfo(query: String, infoType: String) {
         viewModelScope.launch {
             try {
-                // Construct the prompt
-                val prompt = "Explain how to use a $toolName."
+                val prompt = "Tell me about the $query of a tool."
                 val request = ToolInfoRequest(
-                    model = "text-davinci-003",
+                    model = "text-davinci-003", // Adjust model as necessary
                     prompt = prompt,
-                    max_tokens = 100,
+                    max_tokens = 150,
                     temperature = 0.5
                 )
                 val response = RetrofitInstance.api.createCompletion(request)
                 if (response.isSuccessful && response.body() != null) {
-                    val responseBody = response.body()!!
-
-                    _toolHistory.value = responseBody.choices.firstOrNull()?.text ?: "No information available"
+                    val text = response.body()!!.choices.firstOrNull()?.text ?: "Information not available."
+                    when (infoType) {
+                        "history" -> _toolHistory.value = text
+                        "usage" -> _toolUsage.value = text
+                        "maintenance" -> _toolMaintenance.value = text
+                    }
                 } else {
-                    // Handle API error
-                    _toolHistory.value = "Failed to fetch information"
+                    updateFailureState(infoType)
                 }
-            } catch (e: HttpException) {
-                // Handle HTTP error
-                _toolHistory.value = "Error: ${e.message}"
             } catch (e: Exception) {
-                // Handle other errors
-                _toolHistory.value = "Error: ${e.message}"
+                updateFailureState(infoType)
             }
+        }
+    }
+
+    private fun updateFailureState(infoType: String) {
+        val errorMessage = "Failed to fetch information."
+        when (infoType) {
+            "history" -> _toolHistory.value = errorMessage
+            "usage" -> _toolUsage.value = errorMessage
+            "maintenance" -> _toolMaintenance.value = errorMessage
         }
     }
 }
