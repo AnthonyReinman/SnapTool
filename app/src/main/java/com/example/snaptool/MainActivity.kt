@@ -1,6 +1,7 @@
 package com.example.snaptool
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.util.Base64
@@ -10,7 +11,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
@@ -37,6 +37,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.core.app.ActivityCompat
+import android.content.Intent
+import android.graphics.BitmapFactory
+
 //ChatGPT
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -47,15 +54,103 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 class MainActivity : ComponentActivity() {
-    private lateinit var cameraLauncher: ManagedActivityResultLauncher<Void?, Bitmap?>
+    private var permissionLauncher: ActivityResultLauncher<String>? = null
+    private var cameraLauncher: ActivityResultLauncher<Void?>? = null
+    private lateinit var imageBitmap: Bitmap
+    private var toolName: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+
+        permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            Log.d("MainActivity", "Permission result: $isGranted")
+            if (isGranted) {
+                Log.d("MainActivity", "Permission granted, launching camera.")
+                cameraLauncher?.launch(null)
+            } else {
+                Toast.makeText(this, "Camera permission is required", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        cameraLauncher = registerForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+            if (bitmap != null) {
+                Log.d("MainActivity", "Image captured successfully")
+                //imageBitmap = bitmap
+                analyzeImageWithRekognition(bitmap)
+            } else {
+                Log.d("MainActivity", "Failed to capture image")
+            }
+        }
+
         setContent {
+            SnapToolTheme {
+                // App's UI content
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
+                    var toolName by remember { mutableStateOf("") }
+                    var showResultScreen by remember { mutableStateOf(false) }
+
+                    if (showResultScreen && imageBitmap != null) {
+                        ResultScreen(toolName, imageBitmap!!) {
+                            showResultScreen = false
+                            imageBitmap = null
+                            toolName = ""
+                        }
+                    } else {
+                        HomeScreen {
+                            if (ContextCompat.checkSelfPermission(
+                                    this@MainActivity,
+                                    Manifest.permission.CAMERA
+                                ) == PackageManager.PERMISSION_GRANTED
+                            ) {
+                                cameraLauncher?.launch(null)
+                            } else {
+                                ActivityCompat.requestPermissions(
+                                    this@MainActivity,
+                                    arrayOf(Manifest.permission.CAMERA),
+                                    REQUEST_CAMERA_PERMISSION
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    companion object {
+        private const val REQUEST_CAMERA_PERMISSION = 101
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CAMERA_PERMISSION) {
+            if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+                cameraLauncher?.launch(null)
+            } else {
+                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+       /* setContent {
             SnapToolTheme {
                 var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
                 var toolName by remember { mutableStateOf("") }
                 var showResultScreen by remember { mutableStateOf(false) }
+
+                permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+                    if (isGranted) {
+                        cameraLauncher.launch(null)
+                    } else {
+                        Toast.makeText(this@MainActivity, "Camera permission is required", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
                 cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
                     if (bitmap != null) {
                         Log.d("CameraFeature", "Image captured successfully")
@@ -81,13 +176,13 @@ class MainActivity : ComponentActivity() {
                         }
                     } else {
                         HomeScreen {
-                            cameraLauncher.launch(null)
+                            permissionLauncher.launch(Manifest.permission.CAMERA)
                         }
                     }
                 }
             }
         }
-    }
+    }*/
 
 
     @Composable
@@ -134,7 +229,7 @@ class MainActivity : ComponentActivity() {
                         .fillMaxWidth()
                         .weight(1f)
                 )
-                Spacer(modifier = Modifier.height(32.dp)) // Adjust this value to move the button up
+                Spacer(modifier = Modifier.height(32.dp)) //move the button up
                 Button(onClick = onTakePicture) {
                     Text("Take Picture")
                 }
@@ -178,13 +273,13 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Text("Return to Home")
                 }
-                // Add more UI elements
+
             }
         }
     }
 
 
-private fun analyzeImageWithRekognition(bitmap: Bitmap, onResult: (String) -> Unit) {
+private fun analyzeImageWithRekognition(bitmap: Bitmap) {
     //LOG
     Log.d("Rekognition", "Starting image analysis")
     val base64Image = convertToBase64(bitmap)
@@ -213,14 +308,22 @@ private fun analyzeImageWithRekognition(bitmap: Bitmap, onResult: (String) -> Un
 
             // Switch to the Main dispatcher to update the UI
             withContext(Dispatchers.Main) {
-                onResult(labelName)
-                //LOGS
+                toolName = labelName
+                imageBitmap = bitmap
+                setContent {
+                    SnapToolTheme {
+                        ResultScreen(toolName, imageBitmap!!) {
+
+                        }
+                    }
+                }
+
                 Log.d("UIUpdate", "Tool name updated: $labelName")
             }
         } catch (e: Exception) {
             Log.e("Rekognition", "Error: ${e.localizedMessage}")
             withContext(Dispatchers.Main) {
-                onResult("Error: ${e.localizedMessage}")
+                //onResult("Error: ${e.localizedMessage}")
                 //LOGS
                 Log.e("UIUpdate", "Error updating tool name: ${e.localizedMessage}")
             }
