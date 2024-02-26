@@ -62,15 +62,9 @@ class MainActivity : ComponentActivity() {
     private val toolInfoViewModel: ToolInfoViewModel by viewModels()
 
 
-
-
-
-
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         //val toolInfoViewModel: ToolInfoViewModel by viewModels()
-
 
 
 
@@ -96,7 +90,8 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SnapToolTheme {
-                TriggerChatGPTButton(viewModel = toolInfoViewModel)
+                ToolQueryButtons(viewModel = toolInfoViewModel)
+                //TriggerChatGPTButton(viewModel = toolInfoViewModel)
                 // App's UI content
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -135,6 +130,30 @@ class MainActivity : ComponentActivity() {
 
         }
     }
+
+    @Composable
+    fun ToolQueryButtons(viewModel: ToolInfoViewModel) {
+        Column {
+            Button(onClick = { viewModel.fetchSpecificToolInfo("hammer", "history") }) {
+                Text("History")
+            }
+            Button(onClick = { viewModel.fetchSpecificToolInfo("hammer", "usage") }) {
+                Text("Usage")
+            }
+            Button(onClick = { viewModel.fetchSpecificToolInfo("hammer", "maintenance") }) {
+                Text("Maintenance")
+            }
+        }
+    }
+
+    @Preview(showBackground = true)
+    @Composable
+    fun DefaultPreview() {
+        SnapToolTheme {
+            ToolQueryButtons(viewModel = toolInfoViewModel)
+        }
+    }
+
     @Composable
     fun TriggerChatGPTButton(viewModel: ToolInfoViewModel) {
         Button(onClick = { viewModel.fetchSpecificToolInfo("hammer", "history") }) {
@@ -162,78 +181,50 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-       /* setContent {
-            SnapToolTheme {
-                var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
-                var toolName by remember { mutableStateOf("") }
-                var showResultScreen by remember { mutableStateOf(false) }
-
-                permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-                    if (isGranted) {
-                        cameraLauncher.launch(null)
-                    } else {
-                        Toast.makeText(this@MainActivity, "Camera permission is required", Toast.LENGTH_SHORT).show()
-                    }
-                }
-
-                cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-                    if (bitmap != null) {
-                        Log.d("CameraFeature", "Image captured successfully")
-                        imageBitmap = bitmap
-                        analyzeImageWithRekognition(bitmap) { name ->
-                            toolName = name
-                            showResultScreen = true
-                        }
-                    } else {
-                        Log.d("CameraFeature", "Failed to capture image")
-                    }
-                }
-
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    if (showResultScreen && imageBitmap != null) {
-                        ResultScreen(toolName, imageBitmap!!) {
-                            showResultScreen = false
-                            imageBitmap = null // Reset the imageBitmap when going back
-                            toolName = "" // Reset the toolName when going back
-                        }
-                    } else {
-                        HomeScreen {
-                            permissionLauncher.launch(Manifest.permission.CAMERA)
-                        }
-                    }
-                }
-            }
-        }
-    }*/
 
 
     @Composable
     fun ResultScreen(toolName: String, imageBitmap: Bitmap,viewModel: ToolInfoViewModel, onHomeClicked: () -> Unit) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF5CB9FF)) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Tool Identified: $toolName", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Image(
+                        bitmap = imageBitmap.asImageBitmap(),
+                        contentDescription = "Captured Image",
+                                modifier = Modifier
+                                .fillMaxWidth() // Fill the width of the parent
+                            .height(300.dp) // Specify the height you want
+                    )
+                    Button(onClick = { viewModel.fetchSpecificToolInfo(toolName, "usage") }) {
+                        Text("HowToUseIt")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = { viewModel.fetchSpecificToolInfo(toolName, "history") }) {
+                        Text("HistoryOfIt")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = { viewModel.fetchSpecificToolInfo(toolName, "maintenance") }) {
+                        Text("HowToCleanIt")
+                    }
 
-            Column(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("Tool Identified: $toolName", style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.height(16.dp))
-                Image(bitmap = imageBitmap.asImageBitmap(), contentDescription = "Captured Image")
+                    TriggerChatGPTButton(viewModel = viewModel)
+                }
 
-                TriggerChatGPTButton(viewModel = viewModel)
-            }
-
-            // Home button in the upper right corner
-            Button(
-                onClick = onHomeClicked,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
-                    .size(width = 100.dp, height = 40.dp)
-            ) {
-                Text("Home")
+                // Home button in the upper right corner
+                Button(
+                    onClick = onHomeClicked,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                        .size(width = 100.dp, height = 40.dp)
+                ) {
+                    Text("Home")
+                }
             }
         }
     }

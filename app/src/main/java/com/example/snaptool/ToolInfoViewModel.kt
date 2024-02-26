@@ -27,16 +27,21 @@ class ToolInfoViewModel : ViewModel() {
         fetchSpecificToolInfo("$toolName maintenance", "maintenance")
     }
 
-    fun fetchSpecificToolInfo(query: String, infoType: String) {
+    fun fetchSpecificToolInfo(toolName: String, infoType: String) {
         viewModelScope.launch {
             try {
-                //val prompt = "Tell me about the $query of a tool. do not exceed 1 sentence"
+                val query = when (infoType) {
+                    "history" -> "Tell me the history of the $toolName. Act as a funny history professor that loves talking about the history of tool. No more than 2 sentences "
+                    "usage" -> "How do you use a $toolName? Act as a professional handyman and explain in no more than 2 sentences."
+                    "maintenance" -> "How do you maintain a $toolName? Act as a professional handyman and explain in no more than 2 sentences."
+                    else -> "Tell me about the $toolName."
+                }
+
                 val request = ToolInfoRequest(
-                    model = "gpt-3.5-turbo", // Ensure this model is available and correct
-                   // prompt = prompt,
+                    model = "gpt-3.5-turbo",
                     messages = listOf(
                         Message(role = "system", content = "You are a helpful assistant."),
-                        Message(role = "user", content = "Tell me about the $query of a tool. do not exceed 1 sentence")
+                        Message(role = "user", content = query)
                     ),
                     max_tokens = 500,
                     temperature = 0.5
