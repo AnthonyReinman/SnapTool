@@ -5,8 +5,13 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import androidx.lifecycle.liveData
+import kotlinx.coroutines.Dispatchers
 
 class ToolInfoViewModel : ViewModel() {
+
+    private val chatGPTService = RetrofitInstance.api
+
     private val _toolHistory = MutableStateFlow("")
     val toolHistory: StateFlow<String> = _toolHistory
 
@@ -22,17 +27,22 @@ class ToolInfoViewModel : ViewModel() {
         fetchSpecificToolInfo("$toolName maintenance", "maintenance")
     }
 
-    private fun fetchSpecificToolInfo(query: String, infoType: String) {
+    fun fetchSpecificToolInfo(query: String, infoType: String) {
         viewModelScope.launch {
             try {
-                val prompt = "Tell me about the $query of a tool."
+                //val prompt = "Tell me about the $query of a tool. do not exceed 1 sentence"
                 val request = ToolInfoRequest(
-                    model = "text-davinci-003", // Adjust model as necessary
-                    prompt = prompt,
-                    max_tokens = 150,
+                    model = "gpt-3.5-turbo", // Ensure this model is available and correct
+                   // prompt = prompt,
+                    messages = listOf(
+                        Message(role = "system", content = "You are a helpful assistant."),
+                        Message(role = "user", content = "Tell me about the $query of a tool. do not exceed 1 sentence")
+                    ),
+                    max_tokens = 500,
                     temperature = 0.5
+
                 )
-                val response = RetrofitInstance.api.createCompletion(request)
+                val response = chatGPTService.createCompletion(request)
                 if (response.isSuccessful && response.body() != null) {
                     val text = response.body()!!.choices.firstOrNull()?.text ?: "Information not available."
                     when (infoType) {

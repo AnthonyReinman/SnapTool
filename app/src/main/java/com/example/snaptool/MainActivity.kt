@@ -43,6 +43,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.app.ActivityCompat
 import android.content.Intent
 import android.graphics.BitmapFactory
+import androidx.activity.viewModels
 
 //ChatGPT
 import okhttp3.OkHttpClient
@@ -58,9 +59,19 @@ class MainActivity : ComponentActivity() {
     private var cameraLauncher: ActivityResultLauncher<Void?>? = null
     private lateinit var imageBitmap: Bitmap
     private var toolName: String = ""
+    private val toolInfoViewModel: ToolInfoViewModel by viewModels()
+
+
+
+
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        //val toolInfoViewModel: ToolInfoViewModel by viewModels()
+
+
 
 
         permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -85,6 +96,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SnapToolTheme {
+                TriggerChatGPTButton(viewModel = toolInfoViewModel)
                 // App's UI content
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -92,7 +104,7 @@ class MainActivity : ComponentActivity() {
                     var showResultScreen by remember { mutableStateOf(false) }
 
                     if (showResultScreen && imageBitmap != null) {
-                        ResultScreen(toolName, imageBitmap!!) {
+                        ResultScreen(toolName = toolName, imageBitmap = imageBitmap!!, viewModel = toolInfoViewModel) {
                             showResultScreen = false
                             imageBitmap = null
                             toolName = ""
@@ -116,12 +128,25 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+
+
+
+
+
+        }
+    }
+    @Composable
+    fun TriggerChatGPTButton(viewModel: ToolInfoViewModel) {
+        Button(onClick = { viewModel.fetchSpecificToolInfo("hammer", "history") }) {
+            Text("Ask ChatGPT")
         }
     }
 
     companion object {
         private const val REQUEST_CAMERA_PERMISSION = 101
     }
+
+
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -186,7 +211,7 @@ class MainActivity : ComponentActivity() {
 
 
     @Composable
-    fun ResultScreen(toolName: String, imageBitmap: Bitmap, onHomeClicked: () -> Unit) {
+    fun ResultScreen(toolName: String, imageBitmap: Bitmap,viewModel: ToolInfoViewModel, onHomeClicked: () -> Unit) {
         Box(modifier = Modifier.fillMaxSize()) {
 
             Column(
@@ -196,6 +221,8 @@ class MainActivity : ComponentActivity() {
                 Text("Tool Identified: $toolName", style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(16.dp))
                 Image(bitmap = imageBitmap.asImageBitmap(), contentDescription = "Captured Image")
+
+                TriggerChatGPTButton(viewModel = viewModel)
             }
 
             // Home button in the upper right corner
@@ -312,7 +339,7 @@ private fun analyzeImageWithRekognition(bitmap: Bitmap) {
                 imageBitmap = bitmap
                 setContent {
                     SnapToolTheme {
-                        ResultScreen(toolName, imageBitmap!!) {
+                        ResultScreen(toolName = toolName, imageBitmap = imageBitmap!!, viewModel = toolInfoViewModel) {
 
                         }
                     }

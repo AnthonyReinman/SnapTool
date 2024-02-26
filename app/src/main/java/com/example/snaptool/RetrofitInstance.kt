@@ -1,17 +1,34 @@
 package com.example.snaptool
 
+import okhttp3.Interceptor.*
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import okhttp3.logging.HttpLoggingInterceptor
+
 
 object RetrofitInstance {
-    private val retrofit by lazy {
-        Retrofit.Builder()
-            .baseUrl("https://api.openai.com/v1/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-    }
+    private val client = OkHttpClient.Builder().apply {
+
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        addInterceptor(logging)
+
+        addInterceptor { chain ->
+            val request = chain.request().newBuilder()
+                .addHeader("Authorization", "Bearer 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")
+                .build()
+            chain.proceed(request)
+        }
+    }.build()
 
     val api: ChatGPTService by lazy {
-        retrofit.create(ChatGPTService::class.java)
+        Retrofit.Builder()
+            .baseUrl("https://api.openai.com/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(ChatGPTService::class.java)
     }
 }
