@@ -1,5 +1,7 @@
 package com.example.snaptool
 
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +23,13 @@ class ToolInfoViewModel : ViewModel() {
     private val _toolMaintenance = MutableStateFlow("")
     val toolMaintenance: StateFlow<String> = _toolMaintenance
 
+
+
+
+    fun updateToolUsage(content: String) {
+        _toolUsage.value = content
+    }
+
     fun fetchToolInfo(toolName: String) {
         fetchSpecificToolInfo("$toolName history", "history")
         fetchSpecificToolInfo("$toolName usage", "usage")
@@ -28,6 +37,7 @@ class ToolInfoViewModel : ViewModel() {
     }
 
     fun fetchSpecificToolInfo(toolName: String, infoType: String) {
+
         viewModelScope.launch {
             try {
                 val query = when (infoType) {

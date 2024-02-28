@@ -44,6 +44,9 @@ import androidx.core.app.ActivityCompat
 import android.content.Intent
 import android.graphics.BitmapFactory
 import androidx.activity.viewModels
+//import androidx.compose.material.Text
+//import androidx.compose.material.MaterialTheme
+import androidx.compose.ui.text.style.TextAlign
 
 //ChatGPT
 import okhttp3.OkHttpClient
@@ -57,12 +60,15 @@ import retrofit2.http.Query
 class MainActivity : ComponentActivity() {
     private var permissionLauncher: ActivityResultLauncher<String>? = null
     private var cameraLauncher: ActivityResultLauncher<Void?>? = null
-    private lateinit var imageBitmap: Bitmap
+    private var imageBitmap: Bitmap? = null
     private var toolName: String = ""
     private val toolInfoViewModel: ToolInfoViewModel by viewModels()
+    private var showHowToUseScreen by mutableStateOf(false)
+    private var showResultScreen by mutableStateOf(false)
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        Log.d("MainActivity", "Initial States - showHowToUseScreen: $showHowToUseScreen, showResultScreen: $showResultScreen")
         super.onCreate(savedInstanceState)
         //val toolInfoViewModel: ToolInfoViewModel by viewModels()
 
@@ -89,8 +95,46 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+
             SnapToolTheme {
-                ToolQueryButtons(viewModel = toolInfoViewModel)
+                Log.d("MainActivity", "Current screen: ${if (showHowToUseScreen) "HowToUseScreen" else if (showResultScreen) "ResultScreen" else "HomeScreen"}")
+                if (showHowToUseScreen) {
+                    Log.d("MainActivity", "Displaying HowToUseScreen")
+                    HowToUseScreen(toolName = toolName, toolUsage = toolInfoViewModel.toolUsage.value, onHomeClicked = {
+
+                        showHowToUseScreen = false
+                        Log.d("MainActivity", "Returned to Home from HowToUseScreen")
+                    })
+                } else if (showResultScreen && imageBitmap != null) {
+                    val nonNullImageBitmap = imageBitmap
+                    ResultScreen(toolName = toolName, imageBitmap = nonNullImageBitmap, viewModel = toolInfoViewModel) {
+
+                        showResultScreen = false
+                        imageBitmap = null
+                        toolName = ""
+                    }
+                } else {
+                    // Default to displaying the "Home" screen
+                    HomeScreen {
+                        // Check for camera permission
+                        if (ContextCompat.checkSelfPermission(
+                                this@MainActivity,
+                                Manifest.permission.CAMERA
+                            ) == PackageManager.PERMISSION_GRANTED
+                        ) {
+                            cameraLauncher?.launch(null)
+                        } else {
+                            ActivityCompat.requestPermissions(
+                                this@MainActivity,
+                                arrayOf(Manifest.permission.CAMERA),
+                                REQUEST_CAMERA_PERMISSION
+                            )
+                        }
+                    }
+                }
+            }
+
+                /*ToolQueryButtons(viewModel = toolInfoViewModel)
                 //TriggerChatGPTButton(viewModel = toolInfoViewModel)
                 // App's UI content
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -122,7 +166,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-            }
+            }*/
 
 
 
@@ -182,26 +226,71 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
     @Composable
-    fun ResultScreen(toolName: String, imageBitmap: Bitmap,viewModel: ToolInfoViewModel, onHomeClicked: () -> Unit) {
+    fun HowToUseScreen(toolName: String, toolUsage: String, onHomeClicked: () -> Unit) {
+        Log.d("HowToUseScreen", "Displaying HowToUseScreen for tool: $toolName")
         Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF5CB9FF)) {
             Box(modifier = Modifier.fillMaxSize()) {
                 Column(
-                    modifier = Modifier.align(Alignment.Center),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "How to Use $toolName",
+                        style = MaterialTheme.typography.headlineLarge
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = toolUsage,
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+                    Button(
+                        onClick = onHomeClicked,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text("Return to Home")
+                    }
+                }
+            }
+        }
+    }
+    @Composable
+    fun ResultScreen(toolName: String, imageBitmap: Bitmap?,viewModel: ToolInfoViewModel, onHomeClicked: () -> Unit) {
+        val toolHistory by viewModel.toolHistory.collectAsState()
+        val toolUsage by viewModel.toolUsage.collectAsState()
+        val toolMaintenance by viewModel.toolMaintenance.collectAsState()
+
+        Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF5CB9FF)) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+
                 ) {
                     Text("Tool Identified: $toolName", style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Image(
-                        bitmap = imageBitmap.asImageBitmap(),
-                        contentDescription = "Captured Image",
-                                modifier = Modifier
+                    imageBitmap?.let {
+                        Image(
+                            bitmap = it.asImageBitmap(),
+                            contentDescription = "Captured Image",
+                            modifier = Modifier
                                 .fillMaxWidth() // Fill the width of the parent
-                            .height(300.dp) // Specify the height you want
-                    )
-                    Button(onClick = { viewModel.fetchSpecificToolInfo(toolName, "usage") }) {
-                        Text("HowToUseIt")
+                                .height(300.dp) // Specify the height you want
+                        )
+                    }
+                    Text("Tool History: $toolHistory", style = MaterialTheme.typography.bodyLarge)
+                    Text("Tool Usage: $toolUsage", style = MaterialTheme.typography.bodyLarge)
+                    Text("Tool Maintenance: $toolMaintenance", style = MaterialTheme.typography.bodyLarge)
+                    Button(onClick = {
+                        Log.d("ResultScreen", "How To Use button clicked, setting showHowToUseScreen = true")
+                        viewModel.fetchSpecificToolInfo(toolName, "usage")
+                        showHowToUseScreen = true
+                        Log.d("MainActivity", "showHowToUseScreen set to true")
+                    }) {
+                        Text("How To Use")
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(onClick = { viewModel.fetchSpecificToolInfo(toolName, "history") }) {
@@ -295,7 +384,10 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
+    override fun onResume() {
+        super.onResume()
+        Log.d("MainActivity", "onResume called")
+    }
 
 private fun analyzeImageWithRekognition(bitmap: Bitmap) {
     //LOG
