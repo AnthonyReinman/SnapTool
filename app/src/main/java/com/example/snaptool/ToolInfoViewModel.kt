@@ -41,9 +41,9 @@ class ToolInfoViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val query = when (infoType) {
-                    "history" -> "Tell me the history of the $toolName. Act as a funny history professor that loves talking about the history of tool. No more than 2 sentences "
-                    "usage" -> "How do you use a $toolName? Act as a professional handyman and explain in no more than 2 sentences."
-                    "maintenance" -> "How do you maintain a $toolName? Act as a professional handyman and explain in no more than 2 sentences."
+                    "history" -> "Tell me the history of the $toolName. Act as a funny history professor that loves talking about the history of tool. No more than 25 words. "
+                    "usage" -> "How do you use a $toolName? Act as a professional handyman and explain in No more than 25 words."
+                    "maintenance" -> "How do you maintain a $toolName? Act as a professional handyman and explain in No more than 25 words."
                     else -> "Tell me about the $toolName."
                 }
 
@@ -59,11 +59,11 @@ class ToolInfoViewModel : ViewModel() {
                 )
                 val response = chatGPTService.createCompletion(request)
                 if (response.isSuccessful && response.body() != null) {
-                    val text = response.body()!!.choices.firstOrNull()?.text ?: "Information not available."
+                    val content = response.body()!!.choices.firstOrNull()?.message?.content ?: "Information not available."
                     when (infoType) {
-                        "history" -> _toolHistory.value = text
-                        "usage" -> _toolUsage.value = text
-                        "maintenance" -> _toolMaintenance.value = text
+                        "history" -> _toolHistory.value = content
+                        "usage" -> _toolUsage.value = content
+                        "maintenance" -> _toolMaintenance.value = content
                     }
                 } else {
                     updateFailureState(infoType)

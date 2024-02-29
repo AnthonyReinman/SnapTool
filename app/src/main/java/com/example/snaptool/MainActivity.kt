@@ -44,9 +44,11 @@ import androidx.core.app.ActivityCompat
 import android.content.Intent
 import android.graphics.BitmapFactory
 import androidx.activity.viewModels
+import androidx.compose.ui.text.font.FontWeight
 //import androidx.compose.material.Text
 //import androidx.compose.material.MaterialTheme
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 
 //ChatGPT
 import okhttp3.OkHttpClient
@@ -95,7 +97,6 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-
             SnapToolTheme {
                 Log.d("MainActivity", "Current screen: ${if (showHowToUseScreen) "HowToUseScreen" else if (showResultScreen) "ResultScreen" else "HomeScreen"}")
                 if (showHowToUseScreen) {
@@ -110,6 +111,7 @@ class MainActivity : ComponentActivity() {
                     ResultScreen(toolName = toolName, imageBitmap = nonNullImageBitmap, viewModel = toolInfoViewModel) {
 
                         showResultScreen = false
+                        showHowToUseScreen = false
                         imageBitmap = null
                         toolName = ""
                     }
@@ -133,45 +135,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-
-                /*ToolQueryButtons(viewModel = toolInfoViewModel)
-                //TriggerChatGPTButton(viewModel = toolInfoViewModel)
-                // App's UI content
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
-                    var toolName by remember { mutableStateOf("") }
-                    var showResultScreen by remember { mutableStateOf(false) }
-
-                    if (showResultScreen && imageBitmap != null) {
-                        ResultScreen(toolName = toolName, imageBitmap = imageBitmap!!, viewModel = toolInfoViewModel) {
-                            showResultScreen = false
-                            imageBitmap = null
-                            toolName = ""
-                        }
-                    } else {
-                        HomeScreen {
-                            if (ContextCompat.checkSelfPermission(
-                                    this@MainActivity,
-                                    Manifest.permission.CAMERA
-                                ) == PackageManager.PERMISSION_GRANTED
-                            ) {
-                                cameraLauncher?.launch(null)
-                            } else {
-                                ActivityCompat.requestPermissions(
-                                    this@MainActivity,
-                                    arrayOf(Manifest.permission.CAMERA),
-                                    REQUEST_CAMERA_PERMISSION
-                                )
-                            }
-                        }
-                    }
-                }
-            }*/
-
-
-
-
-
         }
     }
 
@@ -278,12 +241,15 @@ class MainActivity : ComponentActivity() {
                             contentDescription = "Captured Image",
                             modifier = Modifier
                                 .fillMaxWidth() // Fill the width of the parent
-                                .height(300.dp) // Specify the height you want
+                                .height(150.dp) // Specify the height you want
                         )
                     }
-                    Text("Tool History: $toolHistory", style = MaterialTheme.typography.bodyLarge)
-                    Text("Tool Usage: $toolUsage", style = MaterialTheme.typography.bodyLarge)
-                    Text("Tool Maintenance: $toolMaintenance", style = MaterialTheme.typography.bodyLarge)
+                    Text("Tool History: $toolHistory", style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F)))
+                    Text("Tool Usage: $toolUsage", style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Bold, color = Color(0xFF388E3C)))
+                    Text("Tool Maintenance: $toolMaintenance", style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Bold, color = Color(0xFF1976D2)))
                     Button(onClick = {
                         Log.d("ResultScreen", "How To Use button clicked, setting showHowToUseScreen = true")
                         viewModel.fetchSpecificToolInfo(toolName, "usage")

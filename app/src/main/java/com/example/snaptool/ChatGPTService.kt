@@ -4,8 +4,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.Headers
 import retrofit2.http.POST
-import retrofit2.http.GET
-import retrofit2.http.Query
+
 
 
 interface ChatGPTService {
@@ -32,6 +31,9 @@ data class ToolInfoResponse(
     val choices: List<Choice>
 )
 
-data class Choice(
-    val text: String
+    data class Choice(
+val message: Message
 )
+
+
+

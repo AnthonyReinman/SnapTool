@@ -17,7 +17,7 @@ object RetrofitInstance {
 
         addInterceptor { chain ->
             val request = chain.request().newBuilder()
-                .addHeader("Authorization", "Bearer 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")
+                .addHeader("Authorization", "Bearer ")
                 .build()
             chain.proceed(request)
         }
