@@ -43,6 +43,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.app.ActivityCompat
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.activity.viewModels
 import androidx.compose.ui.text.font.FontWeight
 //import androidx.compose.material.Text
@@ -58,6 +59,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
+import java.io.InputStream
 
 class MainActivity : ComponentActivity() {
     private var permissionLauncher: ActivityResultLauncher<String>? = null
@@ -67,6 +69,7 @@ class MainActivity : ComponentActivity() {
     private val toolInfoViewModel: ToolInfoViewModel by viewModels()
     private var showHowToUseScreen by mutableStateOf(false)
     private var showResultScreen by mutableStateOf(false)
+    private var galleryLauncher: ActivityResultLauncher<String>? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,6 +98,18 @@ class MainActivity : ComponentActivity() {
                 Log.d("MainActivity", "Failed to capture image")
             }
         }
+        galleryLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            if (uri != null) {
+                val imageStream: InputStream? = contentResolver.openInputStream(uri)
+                val selectedImage = BitmapFactory.decodeStream(imageStream)
+                // Use the selected image from gallery as needed
+                imageBitmap = selectedImage
+                // For example, if you want to analyze this image
+                analyzeImageWithRekognition(selectedImage)
+            } else {
+                Toast.makeText(this, "Failed to select image from gallery", Toast.LENGTH_SHORT).show()
+            }
+        }
 
         setContent {
             SnapToolTheme {
@@ -117,7 +132,8 @@ class MainActivity : ComponentActivity() {
                     }
                 } else {
                     // Default to displaying the "Home" screen
-                    HomeScreen {
+                    HomeScreen (
+                        onTakePicture = {
                         // Check for camera permission
                         if (ContextCompat.checkSelfPermission(
                                 this@MainActivity,
@@ -132,7 +148,8 @@ class MainActivity : ComponentActivity() {
                                 REQUEST_CAMERA_PERMISSION
                             )
                         }
-                    }
+                    }, onPickImage = {galleryLauncher?.launch("image/*")})
+
                 }
             }
         }
@@ -285,7 +302,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun HomeScreen(onTakePicture: () -> Unit) {
+    fun HomeScreen(onTakePicture: () -> Unit, onPickImage: () -> Unit) {
         val image = painterResource(id = R.drawable.logo)
         val backgroundColor = Color(0xFF5CB9FF)
         Surface(modifier = Modifier.fillMaxSize(), color = backgroundColor) {
@@ -305,6 +322,10 @@ class MainActivity : ComponentActivity() {
                 Spacer(modifier = Modifier.height(32.dp)) //move the button up
                 Button(onClick = onTakePicture) {
                     Text("Take Picture")
+                }
+                Spacer(modifier = Modifier.height(16.dp)) // Space between buttons
+                Button(onClick = onPickImage) {
+                    Text("Pick Image from Gallery")
                 }
                 Spacer(modifier = Modifier.weight(1f))
             }
