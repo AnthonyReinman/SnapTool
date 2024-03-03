@@ -67,15 +67,14 @@ class MainActivity : ComponentActivity() {
     private var imageBitmap: Bitmap? = null
     private var toolName: String = ""
     private val toolInfoViewModel: ToolInfoViewModel by viewModels()
-    private var showHowToUseScreen by mutableStateOf(false)
     private var showResultScreen by mutableStateOf(false)
     private var galleryLauncher: ActivityResultLauncher<String>? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        Log.d("MainActivity", "Initial States - showHowToUseScreen: $showHowToUseScreen, showResultScreen: $showResultScreen")
+       Log.d("MainActivity", "Initial States - showResultScreen: $showResultScreen")
         super.onCreate(savedInstanceState)
-        //val toolInfoViewModel: ToolInfoViewModel by viewModels()
+
 
 
 
@@ -104,31 +103,24 @@ class MainActivity : ComponentActivity() {
                 val selectedImage = BitmapFactory.decodeStream(imageStream)
                 // Use the selected image from gallery as needed
                 imageBitmap = selectedImage
-                // For example, if you want to analyze this image
                 analyzeImageWithRekognition(selectedImage)
             } else {
                 Toast.makeText(this, "Failed to select image from gallery", Toast.LENGTH_SHORT).show()
             }
         }
 
-        setContent {
+       setContent {
             SnapToolTheme {
-                Log.d("MainActivity", "Current screen: ${if (showHowToUseScreen) "HowToUseScreen" else if (showResultScreen) "ResultScreen" else "HomeScreen"}")
-                if (showHowToUseScreen) {
-                    Log.d("MainActivity", "Displaying HowToUseScreen")
-                    HowToUseScreen(toolName = toolName, toolUsage = toolInfoViewModel.toolUsage.value, onHomeClicked = {
-
-                        showHowToUseScreen = false
-                        Log.d("MainActivity", "Returned to Home from HowToUseScreen")
-                    })
-                } else if (showResultScreen && imageBitmap != null) {
+               if (showResultScreen) {
                     val nonNullImageBitmap = imageBitmap
                     ResultScreen(toolName = toolName, imageBitmap = nonNullImageBitmap, viewModel = toolInfoViewModel) {
-
+                        Log.d("MainActivity", "Home button in ResultScreen clicked")
                         showResultScreen = false
-                        showHowToUseScreen = false
+                        Log.d("MainActivity", "showHowToUseScreen set to false")
                         imageBitmap = null
+                        Log.d("MainActivity", "imageBitmap set to null")
                         toolName = ""
+                        Log.d("MainActivity", "toolName set to empty string")
                     }
                 } else {
                     // Default to displaying the "Home" screen
@@ -148,10 +140,10 @@ class MainActivity : ComponentActivity() {
                                 REQUEST_CAMERA_PERMISSION
                             )
                         }
-                    }, onPickImage = {galleryLauncher?.launch("image/*")})
+                   }, onPickImage = {galleryLauncher?.launch("image/*")})
 
-                }
-            }
+               }
+           }
         }
     }
 
@@ -206,37 +198,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @Composable
-    fun HowToUseScreen(toolName: String, toolUsage: String, onHomeClicked: () -> Unit) {
-        Log.d("HowToUseScreen", "Displaying HowToUseScreen for tool: $toolName")
-        Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF5CB9FF)) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "How to Use $toolName",
-                        style = MaterialTheme.typography.headlineLarge
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = toolUsage,
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center
-                    )
-                    Button(
-                        onClick = onHomeClicked,
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    ) {
-                        Text("Return to Home")
-                    }
-                }
-            }
-        }
-    }
+
     @Composable
     fun ResultScreen(toolName: String, imageBitmap: Bitmap?,viewModel: ToolInfoViewModel, onHomeClicked: () -> Unit) {
         val toolHistory by viewModel.toolHistory.collectAsState()
@@ -270,7 +232,6 @@ class MainActivity : ComponentActivity() {
                     Button(onClick = {
                         Log.d("ResultScreen", "How To Use button clicked, setting showHowToUseScreen = true")
                         viewModel.fetchSpecificToolInfo(toolName, "usage")
-                        showHowToUseScreen = true
                         Log.d("MainActivity", "showHowToUseScreen set to true")
                     }) {
                         Text("How To Use")
@@ -284,12 +245,14 @@ class MainActivity : ComponentActivity() {
                         Text("HowToCleanIt")
                     }
 
-                    TriggerChatGPTButton(viewModel = viewModel)
+                    //TriggerChatGPTButton(viewModel = viewModel)
                 }
 
                 // Home button in the upper right corner
                 Button(
-                    onClick = onHomeClicked,
+                    onClick = {
+                        Log.d("ResultScreen", "Home button clicked")
+                        onHomeClicked()},
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(16.dp)
@@ -332,65 +295,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @Composable
-    fun ToolInfoScreen(viewModel: ToolInfoViewModel, onHomeClick: () -> Unit) {
-        val toolHistory by viewModel.toolHistory.collectAsState()
-        val toolUsage by viewModel.toolUsage.collectAsState()
-        val toolMaintenance by viewModel.toolMaintenance.collectAsState()
 
-        Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF5CB9FF)) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "Tool History: $toolHistory",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(8.dp)
-                )
-                Text(
-                    text = "Tool Usage: $toolUsage",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(8.dp)
-                )
-                Text(
-                    text = "Tool Maintenance: $toolMaintenance",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(8.dp)
-                )
-                Button(
-                    onClick = onHomeClick,
-                    modifier = Modifier.padding(top = 16.dp)
-                ) {
-                    Text("Return to Home")
-                }
-
-            }
-        }
-    }
-    override fun onResume() {
-        super.onResume()
-        Log.d("MainActivity", "onResume called")
-    }
 
 private fun analyzeImageWithRekognition(bitmap: Bitmap) {
-    //LOG
-    Log.d("Rekognition", "Starting image analysis")
     val base64Image = convertToBase64(bitmap)
-
-    //LOG
-    Log.d("Rekognition", "Base64 Image length: ${base64Image.length}")
     // Setup AWS credentials
     val awsCredentials = BasicAWSCredentials("AKIASIQPUJRXEZFILVVG", "c8T78iNoyrbH4EHi7lD2cIzqw+N6dXI7SwhBCXsi")
     val rekognitionClient = AmazonRekognitionClient(awsCredentials)
 
     // Prepare the request
     val request = DetectLabelsRequest()
-        .withImage(com.amazonaws.services.rekognition.model.Image()
-            .withBytes(ByteBuffer.wrap(Base64.decode(base64Image, Base64.DEFAULT))))
+        .withImage(com.amazonaws.services.rekognition.model.Image().withBytes(ByteBuffer.wrap(Base64.decode(base64Image, Base64.DEFAULT))))
         .withMaxLabels(10)
         .withMinConfidence(75F)
 
@@ -400,12 +315,29 @@ private fun analyzeImageWithRekognition(bitmap: Bitmap) {
             val response = rekognitionClient.detectLabels(request)
             Log.d("Rekognition", "Response received: ${response.labels}")
 
-            val labelName = response.labels.maxByOrNull { it.confidence }?.name ?: "Unknown"
-            Log.d("Rekognition", "Most confident label: $labelName")
+            val supportedTools = setOf(
+                "Hammer", "Screwdriver", "Wrench", "Pliers", "Tape Measure", "Saw",
+                "Drill", "Level", "Chisel", "Welding Machine", "Paintbrush", "Carpenter’s Square",
+                "Computer Software", "Smartphone", "Trowel", "Sander", "Hacksaw", "Wire Cutters",
+                "Utility Knife", "Clamp", "Circular Saw", "Sledgehammer", "Jigsaw", "Crowbar",
+                "Angle Grinder", "Bolt Cutter", "Jackhammer", "Router", "Tongs", "Hedge Trimmer",
+                "Geiger Counter", "Endoscope", "Oscilloscope", "Spectrophotometer", "Pipette",
+                "Stethoscope", "Scalpel", "Syringe", "Sphygmomanometer", "Thermometer", "Chainsaw",
+                "Fire Extinguisher", "Screwdriver Bit Set", "Pressure Washer", "Ladder", "Shovel",
+                "Caulking Gun", "Ratchet and Socket Set", "Torque Wrench", "Pry Bar", "Digital Caliper",
+                "Wire Stripper", "Angle Finder", "Wood Plane", "Soldering Iron Stand"
+            )
+
+            val filteredLabels = response.labels
+                .filter { it.name in supportedTools }
+                .sortedByDescending { it.confidence }
+
+            val mostLikelyTool = filteredLabels.firstOrNull()?.name ?: "Unknown"
+            Log.d("Rekognition", "Most confident tool label: $mostLikelyTool")
 
             // Switch to the Main dispatcher to update the UI
             withContext(Dispatchers.Main) {
-                toolName = labelName
+                toolName = mostLikelyTool
                 imageBitmap = bitmap
                 setContent {
                     SnapToolTheme {
@@ -415,13 +347,11 @@ private fun analyzeImageWithRekognition(bitmap: Bitmap) {
                     }
                 }
 
-                Log.d("UIUpdate", "Tool name updated: $labelName")
+                Log.d("UIUpdate", "Tool name updated: $mostLikelyTool")
             }
         } catch (e: Exception) {
             Log.e("Rekognition", "Error: ${e.localizedMessage}")
             withContext(Dispatchers.Main) {
-                //onResult("Error: ${e.localizedMessage}")
-                //LOGS
                 Log.e("UIUpdate", "Error updating tool name: ${e.localizedMessage}")
             }
         }
@@ -434,53 +364,4 @@ private fun convertToBase64(bitmap: Bitmap): String {
         return Base64.encodeToString(toByteArray(), Base64.DEFAULT)
     }
 }
-}
-
-@Composable
-fun CameraFeature(onImageCaptured: (Bitmap) -> Unit) {
-    val context = LocalContext.current
-
-    // Camera launcher
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview(),
-        onResult = { bitmap ->
-            if (bitmap != null) {
-                Log.d("CameraFeature", "Image captured successfully")
-                onImageCaptured(bitmap) // Ensure the callback is invoked here
-            } else {
-                Log.d("CameraFeature", "Failed to capture image")
-            }
-        }
-    )
-
-    // Permission launcher
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted: Boolean ->
-            if (isGranted) {
-                cameraLauncher.launch(null)
-            } else {
-                Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show()
-            }
-        }
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Button(
-            onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Take Picture")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-
-    }
 }
